@@ -1,8 +1,8 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import localResolve from 'rollup-plugin-local-resolve';
-import resolve from 'rollup-plugin-node-resolve';
-import commonJS from 'rollup-plugin-commonjs';
-import { terser } from 'rollup-plugin-terser';
+import { nodeResolve } from '@rollup/plugin-node-resolve';
+import commonJS from '@rollup/plugin-commonjs';
+import terser from '@rollup/plugin-terser';
 import externalGlobals from 'rollup-plugin-external-globals';
 import del from 'rollup-plugin-delete';
 import json from '@rollup/plugin-json';
@@ -12,7 +12,6 @@ import CONSTANTS from './constants';
 
 const globals = { 'socket.io-client': 'io' };
 const external = ['socket.io-client'];
-const WRTC_AJS_DEST_PATH = `${paths.appNodeModules}/webrtc-adapter/out/adapter.js`;
 const BUILD_PATH = paths.appBuild;
 const banner = `/* SkylinkJS v${pkg.version} ${new Date().toString()} */`;
 // eslint-disable-next-line prefer-destructuring
@@ -35,7 +34,7 @@ const config = {
       name: 'Skylink',
       globals,
       banner,
-    }
+    },
   ],
   onwarn: (warning, warn) => {
     // skip certain warnings
@@ -45,13 +44,9 @@ const config = {
   },
   plugins: [
     json({ compact: true }),
-    resolve({
-      only: ['webrtc-adapter', 'clone', 'crypto-js', 'sdp', 'rtcpeerconnection-shim'],
-    }),
+    nodeResolve(),
     commonJS({
-      namedExports: {
-        [WRTC_AJS_DEST_PATH]: ['AdapterJS'],
-      },
+      strictRequires: true,
     }),
     externalGlobals(globals),
     localResolve(),
@@ -90,13 +85,9 @@ const configMin = {
   },
   plugins: [
     json({ compact: true }),
-    resolve({
-      only: ['webrtc-adapter', 'clone', 'crypto-js', 'sdp', 'rtcpeerconnection-shim'],
-    }),
+    nodeResolve(),
     commonJS({
-      namedExports: {
-        [WRTC_AJS_DEST_PATH]: ['AdapterJS'],
-      },
+      strictRequires: true,
     }),
     terser({
       // include: [/^.+\.min\.umd\.js$/, /^.+\.min\.js$/],
