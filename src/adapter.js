@@ -198,7 +198,7 @@ AdapterJS.parseWebrtcDetectedBrowser = function () {
 
     // Detect Firefox (1.0+)
     // Placed before Safari check to ensure Firefox on Android is detected
-  } else if (typeof InstallTrigger !== 'undefined' || navigator.userAgent.indexOf('irefox') > 0) {
+  } else if (navigator.userAgent.indexOf('irefox') > 0) {
     hasMatch = navigator.userAgent.match(/Firefox\/([0-9]+)\./) || [];
 
     window.webrtcDetectedBrowser   = 'firefox';
