@@ -80,7 +80,6 @@ class SkylinkAPIServer {
         throw new Error(webrtcReady.message);
       }
     });
-    initOptions = parseAndMutateOptions(initOptions);
     return initOptions;
   }
 
