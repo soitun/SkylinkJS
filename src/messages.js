@@ -108,6 +108,7 @@ const MESSAGES = {
     DROP_EOC: 'Dropping of sending ICE candidate end-of-candidates signal or unused ICE candidates ->',
     STATE_CHANGE: 'Ice connection state changed ->',
     TURN_NOT_ENABLED: 'TURN is not enabled but forceTURN init options is enforced',
+    NO_ICE_SERVERS: 'No ICE servers. Check init options',
   },
   ICE_CANDIDATE: {
     DROPPING_CANDIDATE: 'Dropping ICE candidate',

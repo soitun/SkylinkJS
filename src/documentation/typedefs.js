@@ -103,14 +103,8 @@
  *   To enable the configuration of this option, you need to enable the "Collect Quality Statistics" option on the Temasys console Website under
  *   App key settings section.
  * @property {boolean} [enableDataChannel=true] The flag if Datachannel connections should be enabled.
- * @property {boolean} [enableTURNServer=true] The flag if TURN ICE servers should
- *   be used when constructing Peer connections to allow TURN connections when required and enabled for the App Key.
- * @property {boolean} [enableSTUNServer=true] The flag if STUN ICE servers should
- *   be used when constructing Peer connections to allow TURN connections when required.
  * @property {boolean} [forceTURN=false] The flag if Peer connections should enforce
  *   connections over the TURN server.
- *   <blockquote>This overrides <code>enableTURNServer</code> value to <code>true</code> and
- *   <code>enableSTUNServer</code> value to <code>false</code>.
  * @property {boolean} [TURNServerTransport] <blockquote class="info">
  *   Note that configuring the protocol may not necessarily result in the desired network transports protocol
  *   used in the actual TURN network traffic as it depends which protocol the browser selects and connects with.
@@ -160,7 +154,7 @@
  *   Note that the minimum timeout value is <code>5000</code>. If less, this value will be <code>5000</code>.
  *   Note that it is recommended to use <code>7000</code> as the lowest timeout value if Peers are connecting
  *   using Polling transports to prevent connection errors.
- * @property {boolean} [forceTURNSSL=false] The flag if TURNS protocol should be used when <code>enableTURNServer</code> is enabled.
+ * @property {boolean} [forceTURNSSL=false] The flag if TURNS protocol should be used. Setting this flag to true sets <code>forceTURN</code> to true as well.
  * <blockquote class="info">
  *   Note that currently Firefox does not support the TURNS protocol, and that if TURNS is required,
  *   TURN ICE servers using port <code>443</code> will be used instead.

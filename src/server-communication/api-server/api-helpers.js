@@ -86,10 +86,12 @@ export const validateAPIResponse = (response) => {
 
 export const parseAndMutateOptions = (options) => {
   const updatedOptions = options;
-  // Force TURN connections should enforce settings.
-  if (updatedOptions.forceTURN === true) {
-    updatedOptions.enableTURNServer = true;
-    updatedOptions.enableSTUNServer = false;
+  // Force TURN  and TURNSSL connections should enforce settings.
+  if (updatedOptions.forceTURNSSL) {
+    updatedOptions.forceTURN = updatedOptions.forceTURNSSL;
+  }
+
+  if (updatedOptions.forceTURN === true || updatedOptions.forceTURNSSL === true) {
     updatedOptions.filterCandidatesType.host = true;
     updatedOptions.filterCandidatesType.srflx = true;
     updatedOptions.filterCandidatesType.relay = false;

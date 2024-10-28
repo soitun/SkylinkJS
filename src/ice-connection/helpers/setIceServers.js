@@ -1,4 +1,3 @@
-import { getConnectionPortsAndProtocolByBrowser } from '../../compatibility/index';
 import { TAGS, TURN_TRANSPORT } from '../../constants';
 import Skylink from '../../index';
 import logger from '../../logger';
@@ -6,62 +5,38 @@ import MESSAGES from '../../messages';
 import { isEmptyArray } from '../../utils/helpers';
 
 const defaultIceServerPorts = {
-  udp: [3478, 19302, 19303, 19304],
-  tcp: [80, 443],
-  both: [19305, 19306, 19307, 19308],
+  udp: [3478, 53],
+  tcp: [80, 3478],
+  ssl: [443, 5349],
 };
 
 const CONSTANTS = {
   STUN: 'stun',
   TURN: 'turn',
-  TEMASYS: 'temasys',
-  DEFAULT_TURN_SERVER: 'turn.temasys.io',
+  TURNS: 'turns',
   TCP: 'TCP',
   UDP: 'UDP',
 };
 
-const userIceServer = (iceServer, serverConfig) => {
-  const { urls } = iceServer;
-  return [{
-    urls,
-    username: serverConfig.iceServers[1].username || null,
-    credential: serverConfig.iceServers[1].credential || null,
-  }];
-};
+const getServers = (protocol, servers) => {
+  const _servers = servers.filter((s) => {
+    const parts = s.url.split(':');
+    const iceServerProtocol = parts[0];
+    return iceServerProtocol === protocol;
+  }).map((s) => {
+    const parts = s.url.split(':');
+    const urlParts = (parts[1] || '').split('@');
 
-const getConnectionPortsByTurnTransport = (params) => {
-  const {
-    TURNServerTransport,
-    forceTURNSSL,
-    udp,
-    tcp,
-    both,
-  } = params;
-  const ports = {
-    udp: [],
-    tcp: [],
-    both: [],
-  };
-  if (TURNServerTransport === TURN_TRANSPORT.UDP && !forceTURNSSL) {
-    ports.udp = udp.concat(both);
-    ports.tcp = [];
-    ports.both = [];
-  } else if (TURNServerTransport === TURN_TRANSPORT.TCP) {
-    ports.tcp = tcp.concat(both);
-    ports.udp = [];
-    ports.both = [];
-  } else if (TURNServerTransport === TURN_TRANSPORT.NONE) {
-    ports.tcp = [];
-    ports.udp = [];
-  } else {
-    ports.tcp = tcp;
-    ports.udp = udp;
-    ports.both = both;
-  }
-  return ports;
-};
+    const iceServerProtocol = parts[0];
+    const iceServerName = (urlParts[1] || urlParts[0]).split('?')[0];
+    const username = urlParts.length === 2 ? urlParts[0] : '';
+    const credential = s.credential || '';
 
-const getIceServerPorts = () => defaultIceServerPorts;
+    return { credential, iceServerName, username, iceServerProtocol };
+  });
+
+  return _servers;
+};
 
 /**
  * @param {String} roomKey - The room id
@@ -73,104 +48,76 @@ const getIceServerPorts = () => defaultIceServerPorts;
 const setIceServers = (roomKey, servers) => {
   const initOptions = Skylink.getInitOptions();
   const state = Skylink.getSkylinkState(roomKey);
-  const serverConfig = {
-    iceServerName: null,
-    iceServerPorts: getIceServerPorts(),
-    iceServerProtocol: CONSTANTS.STUN,
-    iceServers: [{ urls: [] }, { urls: [] }],
-  };
 
   const {
-    iceServer,
-    enableTURNServer,
+    forceTURN,
     forceTURNSSL,
     TURNServerTransport,
-    enableSTUNServer,
-    usePublicSTUN,
   } = initOptions;
 
-  servers.forEach((server) => {
-    if (server.url.indexOf(`${CONSTANTS.STUN}:`) === 0) {
-      if (server.url.indexOf(`${CONSTANTS.TEMASYS}`) > 0) {
-        // server[?transport=xxx]
-        serverConfig.iceServerName = (server.url.split(':')[1] || '').split('?')[0] || null;
-      } else {
-        serverConfig.iceServers[0].urls.push(server.url);
+  const stunServers = getServers(CONSTANTS.STUN, servers);
+  const turnServers = getServers(CONSTANTS.TURN, servers);
+  const turnsServers = getServers(CONSTANTS.TURNS, servers);
+
+  const iceServers = [];
+
+  if (!forceTURN && !forceTURNSSL) {
+    stunServers.forEach((s) => {
+      const urls = [];
+      defaultIceServerPorts.udp.forEach((portNo) => {
+        urls.push(`${s.iceServerProtocol}:${s.iceServerName}:${portNo}`);
+      });
+      iceServers.push({ urls, credential: s.credential, username: s.username });
+    });
+  }
+
+  if (!forceTURNSSL) {
+    turnServers.forEach((s) => {
+      const urls = [];
+      if (TURNServerTransport !== TURN_TRANSPORT.TCP) {
+        defaultIceServerPorts.udp.forEach((portNo) => {
+          urls.push(`${s.iceServerProtocol}:${s.iceServerName}:${portNo}`);
+          if (TURNServerTransport !== TURN_TRANSPORT.NONE) {
+            urls.push(`${s.iceServerProtocol}:${s.iceServerName}:${portNo}?transport=udp`);
+          }
+        });
       }
-    } else if (server.url.indexOf('turn:') === 0 && server.url.indexOf('@') > 0 && server.credential && !(serverConfig.iceServers[1].username || serverConfig.iceServers[1].credential)) {
-      /* eslint-disable prefer-destructuring */
-      const parts = server.url.split(':');
-      const urlParts = (parts[1] || '').split('@');
-      serverConfig.iceServerName = (urlParts[1] || '').split('?')[0];
-      serverConfig.iceServers[1].username = urlParts[0];
-      serverConfig.iceServers[1].credential = server.credential;
-      serverConfig.iceServerProtocol = CONSTANTS.TURN;
-    }
-  });
 
-  if (iceServer) {
-    return { iceServers: userIceServer(iceServer, serverConfig) };
+      if (TURNServerTransport !== TURN_TRANSPORT.UDP) {
+        defaultIceServerPorts.tcp.forEach((portNo) => {
+          if (urls.indexOf(`${s.iceServerProtocol}:${s.iceServerName}:${portNo}`) === -1) {
+            urls.push(`${s.iceServerProtocol}:${s.iceServerName}:${portNo}`);
+          }
+
+          if (TURNServerTransport !== TURN_TRANSPORT.NONE) {
+            urls.push(`${s.iceServerProtocol}:${s.iceServerName}:${portNo}?transport=tcp`);
+          }
+        });
+      }
+
+      iceServers.push({ urls, credential: s.credential, username: s.username });
+    });
   }
 
-  serverConfig.iceServerName = serverConfig.iceServerName || CONSTANTS.DEFAULT_TURN_SERVER;
+  if (TURNServerTransport !== TURN_TRANSPORT.NONE && TURNServerTransport !== TURN_TRANSPORT.UDP) {
+    turnsServers.forEach((s) => {
+      const urls = [];
+      defaultIceServerPorts.ssl.forEach((portNo) => {
+        urls.push(`${s.iceServerProtocol}:${s.iceServerName}:${portNo}?transport=tcp`);
+      });
 
-  if (serverConfig.iceServerProtocol === CONSTANTS.TURN && !enableTURNServer && !forceTURNSSL) {
-    serverConfig.iceServerProtocol = CONSTANTS.STUN;
-  } else {
-    const connectionPortsAndProtocolByBrowser = getConnectionPortsAndProtocolByBrowser({
-      forceTURNSSL,
-      enableTURNServer,
-      CONSTANTS,
-      serverConfig,
+      iceServers.push({ urls, credential: s.credential, username: s.username });
     });
-    serverConfig.iceServerPorts.tcp = connectionPortsAndProtocolByBrowser.tcp;
-    serverConfig.iceServerPorts.udp = connectionPortsAndProtocolByBrowser.udp;
-    serverConfig.iceServerPorts.both = connectionPortsAndProtocolByBrowser.both;
-    serverConfig.iceServerProtocol = connectionPortsAndProtocolByBrowser.iceServerProtocol;
   }
 
-  const connectionPortsByTurnTransport = getConnectionPortsByTurnTransport({
-    forceTURNSSL,
-    TURNServerTransport,
-    udp: serverConfig.iceServerPorts.udp,
-    tcp: serverConfig.iceServerPorts.tcp,
-    both: serverConfig.iceServerPorts.both,
-  });
-
-  serverConfig.iceServerPorts.tcp = connectionPortsByTurnTransport.tcp;
-  serverConfig.iceServerPorts.udp = connectionPortsByTurnTransport.udp;
-  serverConfig.iceServerPorts.both = connectionPortsByTurnTransport.both;
-
-  if (serverConfig.iceServerProtocol === CONSTANTS.STUN) {
-    serverConfig.iceServerPorts.tcp = [];
-  }
-
-  if (serverConfig.iceServerProtocol === CONSTANTS.STUN && !enableSTUNServer && !state.hasMCU) {
-    serverConfig.iceServers = [];
-  } else {
-    serverConfig.iceServerPorts.tcp.forEach((tcpPort) => {
-      serverConfig.iceServers[1].urls.push(`${serverConfig.iceServerProtocol}:${serverConfig.iceServerName}:${tcpPort}?transport=tcp`);
-    });
-
-    serverConfig.iceServerPorts.udp.forEach((udpPort) => {
-      serverConfig.iceServers[1].urls.push(`${serverConfig.iceServerProtocol}:${serverConfig.iceServerName}:${udpPort}?transport=udp`);
-    });
-
-    serverConfig.iceServerPorts.both.forEach((bothPort) => {
-      serverConfig.iceServers[1].urls.push(`${serverConfig.iceServerProtocol}:${serverConfig.iceServerName}:${bothPort}`);
-    });
-
-    if (!usePublicSTUN) {
-      serverConfig.iceServers.splice(0, 1);
-    }
-  }
-
-  if (isEmptyArray(serverConfig.iceServers) && initOptions.forceTURN && !state.hasMCU) {
+  if (isEmptyArray(iceServers) && initOptions.forceTURN && !state.hasMCU) {
     logger.log.WARN([null, TAGS.PEER_CONNECTION, null, MESSAGES.ICE_CONNECTION.TURN_NOT_ENABLED]);
+  } else if (isEmptyArray(iceServers)) {
+    logger.log.WARN([null, TAGS.PEER_CONNECTION, null, MESSAGES.ICE_CONNECTION.NO_ICE_SERVERS]);
   }
 
   return {
-    iceServers: serverConfig.iceServers,
+    iceServers,
   };
 };
 
