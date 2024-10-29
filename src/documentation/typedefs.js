@@ -158,10 +158,6 @@
  * <blockquote class="info">
  *   Note that currently Firefox does not support the TURNS protocol, and that if TURNS is required,
  *   TURN ICE servers using port <code>443</code> will be used instead.
- * @property {String|Array} [iceServer] The ICE servers for debugging purposes to use.
- *   - When defined as string, the value is considered as <code>[iceServer]</code>.
- *   Note that this is a debugging feature and is only used when instructed for debugging purposes.
- * @property {String} [iceServer.#index] The ICE server url for debugging purposes to use.
  * @property {String|JSON} [socketServer] The Signaling server for debugging purposes to use.
  *   - When defined as string, the value is considered as <code>{ url: socketServer }</code>.
  *   Note that this is a debugging feature and is only used when instructed for debugging purposes.
